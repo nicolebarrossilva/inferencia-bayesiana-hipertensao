@@ -35,6 +35,8 @@ Para o estudo, a amostra analisada foi composta por 60 indivíduos, com hemoglob
 ## Arquivos
 
 - [diabetes.csv](diabetes.csv): base de dados utilizada na análise.
+
+- [`analise_bayesiana.R`](analise_bayesiana.R): código em R utilizado para o tratamento dos dados, implementação do algoritmo Metropolis-Hastings, análise das distribuições a posteriori e análise preditiva.
   
 - [ME705_TF_original_Parte1.pdf](ME705_TF_original_Parte1.pdf): descrição do problema, dos dados e da metodologia.
   
