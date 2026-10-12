@@ -34,9 +34,9 @@ Para o estudo, a amostra analisada foi composta por 60 indivíduos, com hemoglob
 
 ## Arquivos
 
-- Relatório — Parte 1: descrição do problema, dos dados e da metodologia.
+- Relatorio_Parte_1.pdf: descrição do problema, dos dados e da metodologia.
 
-- Relatório — Parte 2: análise exploratória, inferência posterior, diagnósticos de convergência e análises complementares.
+- Relatorio_Parte_2.pdf: análise exploratória, inferência posterior, diagnósticos de convergência e análises complementares.
 
 ## Autores
 
