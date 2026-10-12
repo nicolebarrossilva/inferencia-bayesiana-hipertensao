@@ -7,7 +7,7 @@ Projeto desenvolvido na disciplina ME705 — Inferência Bayesiana, da Universid
 Estimar a proporção de hipertensão entre indivíduos diabéticos e avaliar a incerteza associada a essa estimativa. O estudo também investiga a influência da escolha da distribuição a priori, avalia a convergência do algoritmo MCMC e realiza análises preditivas.
 
 
-A base de dados diabetes.csv foi obtida no [Vanderbilt Biostatistics Datasets](https://hbiostat.org/data/). Os dados são provenientes de uma pesquisa epidemiológica realizada na região central da Virgínia, Estados Unidos, envolvendo indivíduos afro-americanos avaliados quanto à presença de diabetes, obesidade e fatores de risco cardiovascular.
+A base de dados [`diabetes.csv`](https://hbiostat.org/data/)  foi obtida no [Vanderbilt Biostatistics Datasets](https://hbiostat.org/data/). Os dados são provenientes de uma pesquisa epidemiológica realizada na região central da Virgínia, Estados Unidos, envolvendo indivíduos afro-americanos avaliados quanto à presença de diabetes, obesidade e fatores de risco cardiovascular.
 Para o estudo, a amostra analisada foi composta por 60 indivíduos, com hemoglobina glicada (HbA1c) superior a 7,0%, utilizando a pressão arterial sistólica para classificar a presença de hipertensão.
 
 ## Metodologia
