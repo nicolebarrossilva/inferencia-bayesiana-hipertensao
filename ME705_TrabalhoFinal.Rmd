@@ -1,0 +1,361 @@
+---
+title: "ME705_Trabalho Final (testes)"
+author: "Nicole de Barros Silva e Gustavo Coimbra de Souza Teixeira"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Banco de Dados: Diabetes data
+- dimensão: 403x19
+```{r}
+# Ler arquivo CSV
+dados1 <- read.csv("diabetes.csv")
+
+# Estrutura do banco
+str(dados1)
+head(dados1)
+
+# Resumo estatístico
+summary(dados1)
+
+# Quantidade de NA em cada variável
+colSums(is.na(dados1))
+```
+##Passo 1
+
+# 1. Removendo as colunas bp.2s e bp.2d (poucas observações) e linhas com NA's
+
+```{r}
+# Instala e carrega os pacotes necessários
+if (!require(dplyr)) {
+  install.packages("dplyr")
+  library(dplyr)
+}
+
+if (!require(tidyr)) {
+  install.packages("tidyr")
+  library(tidyr)
+}
+```
+
+```{r}
+dados = dados1[, !(names(dados1) %in% c("bp.2s", "bp.2d"))]
+```
+
+```{r}
+dados_limpos <- dados %>% drop_na(glyhb, bp.1s)
+```
+
+# 2. Filtrando apenas indivíduos diabéticos (glyhb > 7.0)
+```{r}
+diabeticos <- subset(dados_limpos,glyhb > 7)
+```
+
+# 3. Criando a variável de Hipertensão (bp.1s >= 140)
+# X = 1 se for hipertenso, 0 caso contrário
+```{r}
+diabeticos$hipertenso <- ifelse(diabeticos$bp.1s >= 140, 1, 0)
+```
+
+# 4. Obtendo os valores para a Verossimilhança Binomial
+```{r}
+n <- nrow(diabeticos)          # Tamanho da amostra
+x <- sum(diabeticos$hipertenso, na.rm = TRUE) # Número de sucessos (hipertensos)
+```
+
+# 5. Análise Exploratória
+```{r}
+prop_obs <- x / n
+cat("Tamanho da amostra (n):", n, "\n")
+cat("Número de hipertensos (x):", x, "\n")
+cat("Proporção observada:", round(prop_obs, 4), "\n")
+```
+
+# Histograma da Pressão Sistólica dos Diabéticos
+```{r}
+hist(diabeticos$bp.1s,
+     main = "Distribuição da Pressão Sistólica em Diabéticos",
+     xlab = "Pressão Arterial Sistólica (mmHg)",
+     ylab = "Frequência",
+     col = "lightblue",
+     border = "white",
+     cex.main = 1.1,
+     cex.lab = 1.0)
+
+abline(v = 140, col = "red", lwd = 2, lty = 2)
+```
+
+# Medidas Resumo da Pressão Sistólica dos Diabéticos
+```{r}
+summary(diabeticos$bp.1s)
+sd(diabeticos$bp.1s)
+```
+
+##Passo 2: Implementando METROPOLIS-HASTINGS
+
+# Função MH
+```{r}
+# Configurações Iniciais
+set.seed(123) 
+n_iter <- 10000
+sigma_prop <- 0.10
+
+# Função MH
+run_mh <- function(n, x, a_priori, b_priori, n_iter, sigma) {
+  theta <- numeric(n_iter)
+  theta[1] <- 0.5 
+  aceitos <- 0
+  
+  for (t in 2:n_iter) {
+    proposta <- rnorm(1, mean = theta[t-1], sd = sigma)
+    
+    # Se a proposta cair dentro do espaço paramétrico, avalia a aceitação
+    if (proposta > 0 && proposta < 1) {
+      log_lik_atual <- dbinom(x, n, theta[t-1], log = TRUE)
+      log_lik_prop  <- dbinom(x, n, proposta, log = TRUE)
+      
+      log_pri_atual <- dbeta(theta[t-1], a_priori, b_priori, log = TRUE)
+      log_pri_prop  <- dbeta(proposta, a_priori, b_priori, log = TRUE)
+      
+      log_alpha <- (log_lik_prop + log_pri_prop) - (log_lik_atual + log_pri_atual)
+      
+      if (log(runif(1)) < log_alpha) {
+        theta[t] <- proposta
+        aceitos <- aceitos + 1
+      } else {
+        theta[t] <- theta[t-1] # Rejeita a proposta
+      }
+    } else {
+      theta[t] <- theta[t-1] # Rejeita automaticamente se sair de [0,1]
+    }
+  }
+  
+  cat("Taxa de aceitação:", round(aceitos/(n_iter-1) * 100, 2), "%\n")
+  return(theta)
+}
+```
+
+# Execução
+```{r}
+# 1. Posteriori com Priori Não Informativa (Beta(1,1))
+cadeia_nao_inf <- run_mh(n, x, 1, 1, n_iter, sigma_prop)
+
+# 2. Posteriori com Priori Informativa (Beta(12,28))
+cadeia_inf <- run_mh(n, x, 12, 28, n_iter, sigma_prop)
+
+# Tratamento(Burn-in)
+burn_in <- 0.2 * n_iter
+amostras_nao_inf <- cadeia_nao_inf[(burn_in+1):n_iter]
+amostras_inf <- cadeia_inf[(burn_in+1):n_iter]
+```
+
+## Passo 3: Gráficos
+
+```{r}
+par(mfrow = c(2,2))
+
+# Priori Não Informativa
+plot(amostras_nao_inf, type = "l", col = "blue",
+     main = "Trace Plot (Priori não informativa)",
+     xlab = "Iteração",
+     ylab = expression(theta))
+
+hist(amostras_nao_inf,
+     breaks = 30,
+     prob = TRUE,
+     col = "lightblue",
+     main = "Posteriori (Priori não informativa)",
+     xlab = expression(theta))
+
+lines(
+  density(amostras_nao_inf, adjust = 1.5),
+  col = "red",
+  lwd = 2
+)
+
+# Priori Informativa
+plot(amostras_inf, type = "l", col = "darkgreen",
+     main = "Trace Plot (Priori informativa)",
+     xlab = "Iteração",
+     ylab = expression(theta))
+
+hist(amostras_inf,
+     breaks = 30,
+     prob = TRUE,
+     col = "lightgreen",
+     main = "Posteriori (Priori informativa)",
+     xlab = expression(theta))
+
+lines(
+  density(amostras_inf, adjust = 1.5),
+  col = "red",
+  lwd = 2
+)
+
+
+par(mfrow = c(1,1))
+```
+
+```{r}
+# Diagnóstico de ConvergÊncia (ACF)
+# Verificando a independência das amostras geradas
+
+par(mfrow=c(1,2)) # Divide a tela em 2
+
+acf(amostras_nao_inf, main="ACF (Priori não informativa)", col="blue")
+acf(amostras_inf, main="ACF (Priori informativa)", col="darkgreen")
+
+par(mfrow=c(1,1)) # Retorna a tela ao normal
+```
+
+## Passo 4: Resumo Estatístico e Análise Preditiva
+
+# Resumo estatístico
+```{r}
+# Função para extrair as estatísticas finais
+gerar_resumo_final <- function(amostras, a_priori, b_priori, titulo) {
+  # 1. Medidas sobre a Posteriori
+  media_post <- mean(amostras)
+  sd_post <- sd(amostras)
+  ic_95 <- quantile(amostras, probs = c(0.025, 0.975))
+  
+  # Cálculo da Moda via estimador de densidade kernel
+  densidade <- density(amostras)
+  moda_post <- densidade$x[which.max(densidade$y)]
+  
+  # 2. Cálculo do Fator de Bayes para H0: theta <= 0.5 vs H1: theta > 0.5
+  # Chance a Priori (H1 / H0)
+  prob_pri_h1 <- pbeta(0.5, a_priori, b_priori, lower.tail = FALSE)
+  prob_pri_h0 <- pbeta(0.5, a_priori, b_priori, lower.tail = TRUE)
+  chance_priori <- prob_pri_h1 / prob_pri_h0
+  
+  # Chance a Posteriori (H1 / H0)
+  prob_post_h1 <- mean(amostras > 0.5)
+  prob_post_h0 <- mean(amostras <= 0.5)
+  chance_posteriori <- prob_post_h1 / prob_post_h0
+  
+  # Fator de Bayes em favor de H1 (Prevalência maior que 50%)
+  fator_bayes_10 <- chance_posteriori / chance_priori
+  
+  cat("\n========================================================")
+  cat("\n", titulo)
+  cat("\n========================================================")
+  cat("\nMédia a Posteriori:                 ", round(media_post, 4))
+  cat("\nModa a Posteriori:                  ", round(moda_post, 4))
+  cat("\nDesvio Padrão a Posteriori:          ", round(sd_post, 4))
+  cat("\nIntervalo de Credibilidade (95%):   [", round(ic_95[1], 4), ",", round(ic_95[2], 4), "]")
+  cat("\n--------------------------------------------------------")
+  cat("\nFator de Bayes (BF_10) para H1:theta > 0.5:", round(fator_bayes_10, 4))
+  cat("\n========================================================\n")
+}
+
+# Execução
+gerar_resumo_final(amostras_nao_inf, 1, 1, "RESULTADOS: PRIORI NÃO INFORMATIVA (Beta 1,1)")
+gerar_resumo_final(amostras_inf, 12, 28, "RESULTADOS: PRIORI INFORMATIVA (Beta 12,28)")
+
+```
+
+# Análise Preditiva
+```{r}
+# Simula contagens de hipertensos (Y) em uma nova amostra de tamanho n = 60
+# usando os valores simulados da nossa distribuição posteriori (Não Informativa)
+
+set.seed(123)
+n_pred <- length(amostras_nao_inf)
+y_predito <- rbinom(n_pred, size = n, prob = amostras_nao_inf)
+
+# Gráfico da Distribuição Preditiva Posterior
+hist(y_predito, breaks = 20, prob = TRUE, col = "lightgray", border = "darkgray",
+     main = "Distribuição Preditiva Posterior para o Número de Hipertensos",
+     xlab = "Número de Indivíduos Hipertensos (em uma nova amostra n=60)", ylab = "Densidade")
+
+# Adiciona uma linha vertical indicando o valor real observado nos dados (x = 40)
+abline(v = x, col = "red", lwd = 3, lty = 2)
+
+# Probabilidade de observar um valor igual ou mais extremo que o nosso dado real (P-valor Bayesiano)
+p_valor_bayesiano <- mean(y_predito >= x)
+cat("\nProbabilidade Preditiva Posterior de observar >= ", x, " hipertensos: ", round(p_valor_bayesiano, 4), "\n")
+```
+
+# Salvando os gráficos para o relatório
+```{r}
+# 1. Histograma Exploratório da Pressão
+png("histograma_pressao.png", width = 600, height = 450, res = 120)
+hist(diabeticos$bp.1s,
+     main = "Distribuição da Pressão Sistólica em Diabéticos",
+     xlab = "Pressão Arterial Sistólica (mmHg)",
+     ylab = "Frequência", col = "lightblue", border = "white")
+abline(v = 140, col = "red", lwd = 2, lty = 2)
+dev.off()
+
+# 2. Diagnósticos MCMC (Trace plots e Histogramas)
+png("diagnosticos_mcmc.png", width = 800, height = 600, res = 120)
+# Configura o layout para mostrar os gráficos em uma grade 2x2
+par(mfrow = c(2,2))
+
+# Priori Não Informativa 
+plot(amostras_nao_inf, type = "l", col = "blue",
+     main = "Trace Plot (Priori não informativa)",
+     xlab = "Iteração",
+     ylab = expression(theta))
+
+hist(amostras_nao_inf,
+     breaks = 30,
+     prob = TRUE,
+     col = "lightblue",
+     main = "Posteriori (Priori não informativa)",
+     xlab = expression(theta))
+
+lines(
+  density(amostras_nao_inf, adjust = 1.5),
+  col = "red",
+  lwd = 2
+)
+
+# --- Priori Informativa ---
+plot(amostras_inf, type = "l", col = "darkgreen",
+     main = "Trace Plot (Priori informativa)",
+     xlab = "Iteração",
+     ylab = expression(theta))
+
+hist(amostras_inf,
+     breaks = 30,
+     prob = TRUE,
+     col = "lightgreen",
+     main = "Posteriori (Priori informativa)",
+     xlab = expression(theta))
+
+lines(
+  density(amostras_inf, adjust = 1.5),
+  col = "red",
+  lwd = 2
+)
+
+# Reseta o layout para 1x1
+par(mfrow = c(1,1))
+dev.off()
+
+# 3. Gráficos de Autocorrelação (ACF - Lado a Lado 1x2)
+png("acf_mcmc.png", width = 800, height = 400, res = 120)
+par(mfrow=c(1,2)) # Divide a tela em 2
+
+acf(amostras_nao_inf, main="ACF (Priori não informativa)", col="blue")
+acf(amostras_inf, main="ACF (Priori informativa)", col="darkgreen")
+
+par(mfrow=c(1,1)) # Retorna a tela ao normal
+dev.off()
+
+# 4. Distribuição Preditiva Posterior
+png("image_2833e5.png", width = 600, height = 450, res = 120)
+hist(y_predito, breaks = 20, prob = TRUE, col = "lightgray", border = "darkgray",
+     main = "Distribuição Preditiva Posterior para o Número de Hipertensos",
+     xlab = "Número de Indivíduos Hipertensos (nova amostra n=60)", ylab = "Densidade")
+abline(v = x, col = "red", lwd = 3, lty = 2)
+text(x - 4, 0.05, paste("Observado (x =", x, ")"), col = "red", font = 2)
+dev.off()
+
+```
+
