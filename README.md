@@ -34,9 +34,9 @@ Para o estudo, a amostra analisada foi composta por 60 indivíduos, com hemoglob
 
 ## Arquivos
 
-- Relatorio_Parte_1.pdf: descrição do problema, dos dados e da metodologia.
+- ME705_TF_original_Parte1.pdf: descrição do problema, dos dados e da metodologia.
 
-- Relatorio_Parte_2.pdf: análise exploratória, inferência posterior, diagnósticos de convergência e análises complementares.
+- ME705_TrabalhoFinal_Parte2: análise exploratória, inferência posterior, diagnósticos de convergência e análises complementares.
 
 ## Autores
 
